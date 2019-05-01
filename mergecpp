@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Merges several C++ header files into a single output by replacing #include statements with the content of the included file. 
+# Only files deeper in the directory tree will be matched.
+
+regex="#include\s?<(.*)>"
+IFS=''
+declare -a pragma
+
+printusage() { 
+echo -e "\
+Usage: $0 <source>   Combine hpp files into a single source file."
+exit
+}
+
+parse_file() {
+    while read line || [ -n "$line" ]; do
+        if [[ "$line" =~ $regex ]] ;
+        then
+            found=true
+            
+            for i in "${pragma[@]}"; do
+                if [[ "${BASH_REMATCH[1]}" == "$i" ]] ;
+                then
+                    found=false
+                    break;
+                fi
+            done
+
+            if $found ; then
+
+                pragma+=(${BASH_REMATCH[1]})
+                found=$(find . -name "${BASH_REMATCH[1]}" -print -quit) ;
+
+                if [[ $found ]] ;
+                then 
+                    parse_file $found
+                else 
+                    echo "$line";
+                fi;
+            fi;
+        elif [[ ! "$line" =~ "#pragma once" ]];
+        then 
+            echo "$line"
+        fi
+    done < $1
+}
+
+if [ "$1" = "" ]
+then
+    printusage
+fi
+
+parse_file $1
+
